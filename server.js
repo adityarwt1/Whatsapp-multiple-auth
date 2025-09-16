@@ -12,21 +12,31 @@ const handler = app.getRequestHandler();
 app.prepare().then(() => {
   const httpServer = createServer(handler);
 
-  // Setup socket.io with CORS
   const io = new Server(httpServer, {
     cors: {
-      origin: "*", // allow all for dev
+      origin: "*",
       methods: ["GET", "POST"],
     },
   });
+
+  const BASE_URL = process.env.HOST_URL || `http://${hostname}:${port}`;
 
   io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
 
     socket.on("hello", (data) => {
       console.log("Client sent:", data);
-      // Respond after receiving the event to avoid race conditions
       socket.emit("helloResponse", "✅ chalo working hai");
+    });
+
+    // listen at connection scope to avoid race
+    socket.on("responseapi", async (data) => {
+      const response = await fetch(`${BASE_URL}/api/hello`, {
+        method: "POST",
+        body: JSON.stringify({ username: data.username }),
+      });
+      const apireponse = await response.json(); // { message: string }
+      socket.emit("takereturn", apireponse);
     });
   });
 
